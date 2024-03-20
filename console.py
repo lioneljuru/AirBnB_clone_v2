@@ -2,6 +2,7 @@
 """ Console Module """
 import cmd
 import sys
+from os import getenv
 from models.base_model import BaseModel
 from models.__init__ import storage
 from models.user import User
@@ -118,13 +119,41 @@ class HBNBCommand(cmd.Cmd):
         if not args:
             print("** class name missing **")
             return
-        elif args not in HBNBCommand.classes:
+        arg = args.split()
+        
+        if arg[0] not in HBNBCommand.classes:
             print("** class doesn't exist **")
             return
-        new_instance = HBNBCommand.classes[args]()
-        storage.save()
-        print(new_instance.id)
-        storage.save()
+        if len(args) == 1:
+            new_instance = HBNBCommand.classes[arg[0]]()
+            storage.save()
+            print(new_instance.id)
+            new_instance.save()
+            storage.save()
+        elif len(args) > 1:
+            params = arg[1:]
+            all_params = []
+            for par in params:
+                par_list = par.split("=")
+                if '"' in par_list[1]:
+                    par_list[1] = par_list[1].strip('"')
+                    all_params.append(par_list)
+                elif '.' in par_list[1]:
+                    par_list[1] = float(par_list[1])
+                    all_params.append(par_list)
+                else:
+                    try:
+                        par_list[1] = int(par_List[1])
+                        all_params.append(par_list)
+                    except:
+                        pass
+            new_instance = HBNBCommand.classes[arg[0]]()
+            for i in all_params:
+                new_instance.__dict__[i[0]] = i[1]
+            storage.save()
+            print(new_instance.id)
+            new_instance.save()
+            storage.save()
 
     def help_create(self):
         """ Help information for the create method """
@@ -187,8 +216,11 @@ class HBNBCommand(cmd.Cmd):
         key = c_name + "." + c_id
 
         try:
-            del(storage.all()[key])
-            storage.save()
+            if getenv("HBNB_TYPE_STORAGE") == "db":
+                storage.delete(storage.all()[key])
+            else:
+                del(storage.all()[key])
+                storage.save()
         except KeyError:
             print("** no instance found **")
 
@@ -206,11 +238,11 @@ class HBNBCommand(cmd.Cmd):
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 if k.split('.')[0] == args:
                     print_list.append(str(v))
         else:
-            for k, v in storage._FileStorage__objects.items():
+            for k, v in storage.all().items():
                 print_list.append(str(v))
 
         print(print_list)
